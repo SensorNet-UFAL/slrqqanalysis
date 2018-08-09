@@ -32,20 +32,21 @@ library(bibliometrix)
 D <- readFiles("savedrecs.bib")
 M <- convert2df(D, dbsource = "isi", format = "bibtex")
 ```
-Based on <https://cran.r-project.org/web/packages/bibliometrix/vignettes/bibliometrix-vignette.html>
+Based on <https://cran.r-project.org/web/packages/bibliometrix/vignettes/bibliometrix-vignette.html>, more details exploring the library bibliometrix can be found there.
 
 ### PDF
 xxxx
 
 ## Processing data
-
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+Using `bibliometrix` package, the below gaphic can be visualized.
+```{r keyword, echo=FALSE}
+NetMatrix <- biblioNetwork(M, analysis = "co-occurrences", network = "keywords", sep = ";")
+net=networkPlot(NetMatrix, normalize="association", weighted=T, n = 30, Title = "Keyword Co-occurrences", type = "fruchterman", size=T,edgesize = 5,labelsize=0.7)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+One can visualize for instance, which articles cite a specific author
+```{r}
+M[grep("CHEONG E", M$CR),2]
+```
+
+
