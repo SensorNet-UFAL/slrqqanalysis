@@ -1,10 +1,12 @@
 ---
 title: "Systematic Literature Review with quantitative analysis of scientific production"
 author: "Randy Quindai"
-date: "August , 2018"
+date: "August, 2018"
 output: 
   html_document:
     toc: true
+    fig_caption: true
+    df_print: paged
     toc_float:
       collapsed: false
       smooth_scroll: true
@@ -14,6 +16,9 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+*LaCCAN, Brasil | *
+*Federal University of Alagoas*
+
 ## Introduction
 The project associated to this document can be found on github  at <https://github.com/SensorNet-UFAL/slrqqanalysis>, we are accepting pull requests, please feel free to send us yours recommendations.
 All data was tested in this configuration settings:
@@ -21,9 +26,9 @@ All data was tested in this configuration settings:
 sessionInfo()
 ```
 
-## Reading Data
+## Reading Data {.tabset .tabset-fade}
 
-### Bibtex
+### Bibtex 
 There are many ways to read bibtex data in R, we'll list all the different methods we can find out there, or propose new ones.
 
 **Bibliometrix** is the library used in this snippet, *savedrecs.bib* is the bibtex file extracted.
@@ -31,8 +36,10 @@ There are many ways to read bibtex data in R, we'll list all the different metho
 library(bibliometrix)
 D <- readFiles("savedrecs.bib")
 M <- convert2df(D, dbsource = "isi", format = "bibtex")
+#One can explore all the field tags imported from bib file
+M
 ```
-Based on <https://cran.r-project.org/web/packages/bibliometrix/vignettes/bibliometrix-vignette.html>, more details exploring the library bibliometrix can be found there.
+Based on <https://cran.r-project.org/web/packages/bibliometrix/vignettes/bibliometrix-vignette.html>, more details exploring the library bibliometrix can be found there, details of fields <http://www.bibliometrix.org/documents/Field_Tags_bibliometrix.pdf>.
 
 ### PDF
 xxxx
