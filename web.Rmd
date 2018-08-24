@@ -45,7 +45,7 @@ Based on <https://cran.r-project.org/web/packages/bibliometrix/vignettes/bibliom
 xxxx
 
 ## Processing data
-Using `bibliometrix` package, the below gaphic can be visualized.
+Using `bibliometrix` package, below gaphic can be visualized.
 ```{r keyword, echo=FALSE}
 NetMatrix <- biblioNetwork(M, analysis = "co-occurrences", network = "keywords", sep = ";")
 net=networkPlot(NetMatrix, normalize="association", weighted=T, n = 30, Title = "Keyword Co-occurrences", type = "fruchterman", size=T,edgesize = 5,labelsize=0.7)
@@ -56,4 +56,17 @@ One can visualize for instance, which articles cite a specific author
 M[grep("CHEONG E", M$CR),2]
 ```
 
+Local citations
+```{r}
+localTC <- localCitations(M, sep = ";")
+lapply(localTC, head)
+```
+
+
+Or to obtain the most dominant authors in a set
+```{r}
+library(bibliometrix)
+results <- biblioAnalysis(M, sep = ";")
+dominance(results, k=10)
+```
 
