@@ -42,9 +42,32 @@ M
 Based on <https://cran.r-project.org/web/packages/bibliometrix/vignettes/bibliometrix-vignette.html>, more details exploring the library bibliometrix can be found there, details of fields <http://www.bibliometrix.org/documents/Field_Tags_bibliometrix.pdf>.
 
 ### PDF
-xxxx
+For reading `.pdf` files, one can take the followings steps:
 
-## Processing data
+The use of topic modeling on published articles provides a way to quantify the content of the study. Following snippets will walk you through these findings.
+
+**tm** is the library that we'll explore, all files are in the folder `pdfs`.
+```{r, message=FALSE}
+library(tm)
+# read pdf files from folder pdfs
+# Warning: will pop an error if has a number in the pdf file
+files <- list.files("pdfs/",pattern = "pdf$")
+
+# defines a function called rpdf
+rpdf <- readPDF(control = list(text = "-layout"))
+
+setwd("pdfs/")
+
+# variable my.pdf can be explored using $
+# verify and try to extract some information
+my.corpus <- Corpus(URISource(files), readerControl = list(reader = rpdf))
+my.pdfdtm <- DocumentTermMatrix(my.corpus, control=list(removePunctuation = TRUE, stopwords = TRUE, tolower = TRUE, stemming = FALSE, removeNumbers = TRUE))
+```
+
+## Processing data {.tabset .tabset-fade}
+
+### Bibtex
+
 Using `bibliometrix` package, below gaphic can be visualized.
 ```{r keyword}
 NetMatrix <- biblioNetwork(M, analysis = "co-occurrences", network = "keywords", sep = ";")
@@ -83,11 +106,11 @@ dominance(results, k=10)
 <br/>
 
 
-ID		 Keywords Plus associated by ISI or SCOPUS database
+DE		 Author's keywords
 Type `help("conceptualStructure")` to see details about this function.
 ```{r}
 library(bibliometrix)
-cs <- conceptualStructure(M, field = "ID", method = "MCA", quali.supp = NULL, quanti.supp = NULL, minDegree = 2, k.max = 5, stemming = FALSE, labelsize = 10, documents = 50)
+cs <- conceptualStructure(M, field = "DE", method = "MCA", quali.supp = NULL, quanti.supp = NULL, minDegree = 2, k.max = 5, stemming = FALSE, labelsize = 10, documents = 50)
 ```
 
 
@@ -116,17 +139,130 @@ ggplot(DF,aes(x=Year,y=value, group=variable, shape=variable, colour=variable))+
   scale_x_continuous(breaks = seq(min(DF$Year), max(DF$Year), by = 5))+
   scale_y_continuous(breaks = seq(0, max(DF$value), by=10))+
   guides(color=guide_legend(title = "Author Keywords"), shape=FALSE)+
-  labs(y="Count", variable="Author Keywords")+
+  labs(y="Count", variable="Author Keywords", title = "Author's Keywords Usage Evolution Over Time")+
   theme(text = element_text(size = 10))+
   facet_grid(variable ~ .)
 ```
 
+### PDF
+Using `dplyr`, `ggplot2` and `tidytext` packages, corpus data can be explored to extract information and visualization.
 
-# Extras
+For this, LDA (Latent Dirichlet Allocation) is a great algorithm to extract information from all this data.
+
+Library `ldatuning` to find the best number of topics to represent this sample on a LDA model.
+```{r}
+# observe the method used, you can choose Gibbs or VEM
+library(ldatuning)
+library(topicmodels)
+tunningresult <- FindTopicsNumber(
+my.pdfdtm,
+topics = seq(from = 2, to = 15, by = 1),
+metrics = c("Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"),
+method = "Gibbs",
+control = list(seed = 77),
+mc.cores = 3L,
+verbose = TRUE)
+FindTopicsNumber_plot(tunningresult)
+```
+
+
+You can run this snnipet as many times as you'd like, varying the number of CPU cores to suit your needs.
+
+Observe carefully the graph above, it suggests a model with *k* between 12 and 16, we'll choose *k=13*
+
+```{r}
+# Observe the value of k and the method used, you have two options (VEM or Gibbs)
+# matrix Whether to tidy the beta (per-term-per-topic, default) or gamma (per-document-per-topic) matrix
+library(ldatuning)
+library(topicmodels)
+library(tidytext)
+my.pdf.lda <- LDA(my.pdfdtm, k=13, control=list(seed=77), method="Gibbs")
+my.pdf.topics <- tidy(my.pdf.lda, matrix = "beta")
+# optional: to visualize the data uncomment below
+#my.pdf.ap_topics
+```
+
+
+Observe the use of *matrix="beta"*, this is important for our analysis, because, later on we'll analyze how much of the topic is represented on an article.
+
+To a better visualization of the topics, below snnipet gets the top 10 words in each topic.
+
+```{r, message=FALSE}
+library(ldatuning)
+library(topicmodels)
+library(tidytext)
+library(dplyr)
+library(magrittr)
+my.pdf.top_terms <- my.pdf.topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup %>%
+  arrange(topic, -beta)
+# optional: to visualize the data uncomment below
+#my.pdf.aptop_terms
+```
+
+Finnaly, the visualization of top 10 words in each topic.
+```{r}
+library(ldatuning)
+library(topicmodels)
+library(tidytext)
+library(magrittr)
+my.pdf.top_terms %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill=factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+```
+
+
+Now we are going to explore how those topics spread in the articles content.
+
+```{r}
+#resgatar os documentos associados a cada tópico
+my.pdf.gamma <- tidy(my.pdf.lda, matrix = "gamma")
+
+#plot data factor topic
+my.pdf.gamma %>%
+  mutate(title = reorder(document, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ title)
+```
+
+```{r, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidytext)
+my.pdftidy <- tidy(my.pdfdtm)
+
+my.pdfsentiment <- my.pdftidy %>%
+  inner_join(get_sentiments("bing"), by = c(term ="word"))
+
+my.pdfsentiment %>%
+count(sentiment, term, wt = count) %>%
+ungroup() %>%
+filter(n >= 200) %>%
+mutate(n =ifelse(sentiment == "negative", -n, n))%>%
+mutate(term=reorder(term,n)) %>%
+ggplot(aes(term, n, fill = sentiment)) +
+geom_bar(stat="identity") +
+ylab("Sentiment analysis on this set") +
+coord_flip()
+```
+
+## Perplexity
+Is a measure of how well a probability model predicts a sample, all credits are from http://freerangestats.info/blog/2017/01/05/topic-model-cv, please visit this site for more details.
+
+
+## Extras
 
 https://www.researchgate.net/post/What_software_do_you_recommend_for_scientometrics_studies
 
 https://www.mindmeister.com/39583892/research-tools-by-nader-ale-ebrahim
 
 http://www.jzus.zju.edu.cn/manuscript.php
+
+https://rpubs.com/chrisbail/nlp_and_topic_models
 
